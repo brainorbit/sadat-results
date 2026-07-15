@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Generate Result JSON — Result Portal</title>
+<meta name="robots" content="noindex, nofollow">
+<script>
+  (function () {
+    var t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap");
+
+:root {
+  --accent: #FF8201;
+  --accent-ink: #7A3D00;
+  --radius-sm: 10px; --radius-md: 16px; --radius-lg: 24px; --radius-xl: 32px;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 160ms; --dur-med: 320ms; --dur-slow: 560ms;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+[data-theme="light"] {
+  --bg: #FFFFFF; --bg-elevated: #FFFFFF; --surface: #F5F5F7; --surface-2: #EDEDF0;
+  --text: #1D1D1F; --text-secondary: #6E6E73; --text-tertiary: #A1A1A6;
+  --border: rgba(0,0,0,0.08); --border-strong: rgba(0,0,0,0.14);
+  --glass-bg: rgba(255,255,255,0.72); --success: #1E8E3E; --danger: #D93025;
+  --scrim: rgba(0,0,0,0.42);
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --bg: #000000; --bg-elevated: #1C1C1E; --surface: #131315; --surface-2: #1F1F22;
+  --text: #F5F5F7; --text-secondary: #98989D; --text-tertiary: #6E6E73;
+  --border: rgba(255,255,255,0.09); --border-strong: rgba(255,255,255,0.16);
+  --glass-bg: rgba(28,28,30,0.68); --success: #34C759; --danger: #FF453A;
+  --scrim: rgba(0,0,0,0.62);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; font-family: var(--font-body); background: var(--bg); color: var(--text);
+  -webkit-font-smoothing: antialiased; transition: background-color var(--dur-med) var(--ease-out), color var(--dur-med) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+a { color: inherit; }
+button { font-family: inherit; }
+:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+.app-shell { min-height: 100dvh; display: flex; flex-direction: column; animation: fade-scale-in var(--dur-slow) var(--ease-out) both; }
+@keyframes fade-scale-in { from { opacity: 0; transform: scale(1.01); filter: blur(6px); } to { opacity: 1; transform: scale(1); filter: blur(0); } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
+
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(14px + var(--safe-top)) 20px 14px;
+  backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: var(--glass-bg); border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: -0.01em; text-decoration: none; color: var(--text); }
+.brand-mark {
+  width: 30px; height: 30px; border-radius: 9px;
+  background: linear-gradient(145deg, var(--accent), #FFB157);
+  display: flex; align-items: center; justify-content: center; color: #1a1a1a; flex-shrink: 0;
+  box-shadow: 0 2px 10px -2px rgba(255,130,1,0.55);
+}
+.brand-mark svg { width: 17px; height: 17px; }
+.gen-badge {
+  font-size: 11.5px; font-weight: 700; color: var(--text-secondary);
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 5px 11px; border-radius: 100px; letter-spacing: 0.02em;
+}
+
+main { flex: 1; }
+.gen-wrap { max-width: 980px; margin: 0 auto; padding: 28px 18px calc(60px + var(--safe-bottom)); }
+.gen-intro { margin-bottom: 16px; animation: rise-in var(--dur-slow) var(--ease-out) both; }
+.gen-title { font-family: var(--font-display); font-size: clamp(22px, 5vw, 28px); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+.gen-sub { color: var(--text-secondary); font-size: 14.5px; margin: 0; max-width: 560px; line-height: 1.5; }
+
+.draft-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: linear-gradient(120deg, rgba(255,130,1,0.12), rgba(255,130,1,0.03));
+  border: 1px solid rgba(255,130,1,0.28); border-radius: var(--radius-lg);
+  padding: 12px 16px; margin-bottom: 20px; font-size: 13.5px; font-weight: 600;
+  animation: rise-in var(--dur-med) var(--ease-out) both;
+}
+
+.card {
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-xl);
+  padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 16px 40px -24px rgba(0,0,0,0.22);
+}
+.gen-section { margin-bottom: 20px; animation: rise-in var(--dur-med) var(--ease-out) both; }
+
+.section-title { font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.count-badge { font-size: 11.5px; font-weight: 700; background: var(--surface-2); color: var(--text-secondary); padding: 3px 9px; border-radius: 100px; }
+
+.gen-hint { font-weight: 500; color: var(--text-tertiary); font-size: 11.5px; }
+.gen-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 16px; }
+@media (max-width: 560px) { .gen-grid-2 { grid-template-columns: 1fr; } }
+
+.field { margin-bottom: 0; position: relative; }
+.field-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+.field-input, .field-select {
+  width: 100%; appearance: none; -webkit-appearance: none;
+  border: 1.5px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: var(--radius-md); padding: 13px 16px; font-size: 15px; font-family: var(--font-body);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast);
+  min-height: 48px;
+}
+.field-input:focus, .field-select:focus {
+  border-color: var(--accent); background: var(--bg-elevated);
+  box-shadow: 0 0 0 4px rgba(255,130,1,0.14); outline: none;
+}
+.field-select-wrap { position: relative; }
+.field-select-wrap::after {
+  content: ""; position: absolute; right: 16px; top: 50%; width: 9px; height: 9px;
+  border-right: 2px solid var(--text-tertiary); border-bottom: 2px solid var(--text-tertiary);
+  transform: translateY(-70%) rotate(45deg); pointer-events: none;
+}
+
+.gen-help { font-size: 13px; color: var(--text-secondary); margin: -4px 0 14px; line-height: 1.5; }
+.gen-help code { font-family: var(--font-mono); background: var(--surface); padding: 1px 6px; border-radius: 6px; font-size: 12px; }
+
+.table-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow-x: auto; }
+.gen-editable-table { width: 100%; min-width: 100%; border-collapse: collapse; }
+.gen-editable-table thead th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-tertiary); font-weight: 700; padding: 12px 10px; background: var(--surface);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.gen-editable-table thead th.num { text-align: right; }
+.gen-editable-table tbody td { padding: 4px 6px; vertical-align: middle; border-bottom: 1px solid var(--border); }
+.gen-editable-table tbody tr:last-child td { border-bottom: none; }
+.gen-col-action { width: 110px; }
+
+/* Subject row lock + reorder */
+.row-actions { display: flex; gap: 2px; justify-content: flex-end; align-items: center; }
+.lock-note { color: var(--text-tertiary); font-size: 15px; width: 26px; text-align: center; }
+
+/* Let the roster table use the section's full width (border to border) while the
+   rest of the section's content (title, tabs, help text, etc.) keeps its normal inset. */
+.roster-section { padding-left: 0; padding-right: 0; }
+.gen-section-inset { padding-left: 24px; padding-right: 24px; }
+@media (max-width: 480px) { .gen-section-inset { padding-left: 18px; padding-right: 18px; } }
+
+/* Students roster: Registration + Name pinned left, Actions pinned right,
+   one column per subject swipes horizontally in between — mirrors the marksheet layout. */
+.roster-card {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.roster-card .roster-table thead th:first-child, .roster-card .roster-table tbody td:first-child { padding-left: 16px; }
+.roster-card .roster-table thead th:last-child, .roster-card .roster-table tbody td:last-child { padding-right: 16px; }
+.roster-card .roster-table th.roster-col-reg, .roster-card .roster-table td.roster-col-reg { left: 0; }
+.roster-table { width: 100%; border-collapse: collapse; table-layout: auto; }
+.roster-table thead th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-tertiary); font-weight: 700; padding: 12px 10px; background: var(--surface);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.roster-table tbody td { padding: 10px; vertical-align: middle; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.roster-table tbody tr:last-child td { border-bottom: none; }
+
+.roster-col-reg { width: 92px; min-width: 92px; }
+.roster-col-name { width: 122px; min-width: 122px; }
+.roster-col-subject { width: 104px; min-width: 104px; text-align: left; }
+.roster-col-actions { width: 46px; min-width: 46px; }
+
+.roster-table th.roster-col-reg, .roster-table td.roster-col-reg,
+.roster-table th.roster-col-name, .roster-table td.roster-col-name {
+  position: sticky; z-index: 1; background: var(--bg-elevated);
+}
+.roster-table thead th.roster-col-reg, .roster-table thead th.roster-col-name { background: var(--surface); }
+.roster-table th.roster-col-reg, .roster-table td.roster-col-reg { left: 0; }
+.roster-table th.roster-col-name, .roster-table td.roster-col-name { left: 92px; box-shadow: 1px 0 0 var(--border); }
+.roster-table th.roster-col-actions, .roster-table td.roster-col-actions {
+  position: sticky; right: 0; z-index: 1; background: var(--bg-elevated); box-shadow: -1px 0 0 var(--border);
+}
+.roster-table thead th.roster-col-actions { background: var(--surface); }
+
+.roster-reg-value { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 84px; }
+.roster-name-value { font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 114px; }
+.roster-subject-cell { display: flex; flex-direction: column; gap: 2px; white-space: normal; }
+.roster-subject-name { font-size: 10.5px; color: var(--text-tertiary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 94px; }
+.roster-mark-value { font-family: var(--font-mono); font-size: 13.5px; font-weight: 700; color: var(--text); }
+.roster-mark-value.empty { color: var(--text-tertiary); font-weight: 500; }
+.student-empty-row td { padding: 22px 14px; text-align: center; color: var(--text-tertiary); font-size: 13.5px; white-space: normal; }
+
+@media (max-width: 480px) {
+  .roster-table { font-size: 12px; }
+  .roster-table thead th { font-size: 9.5px; padding: 9px 7px; }
+  .roster-table tbody td { padding: 9px 7px; }
+  .roster-col-reg { width: 80px; min-width: 80px; }
+  .roster-col-name { width: 104px; min-width: 104px; }
+  .roster-col-subject { width: 92px; min-width: 92px; }
+  .roster-col-actions { width: 40px; min-width: 40px; }
+  .roster-table th.roster-col-name, .roster-table td.roster-col-name { left: 80px; }
+  .roster-reg-value { max-width: 72px; }
+  .roster-name-value { max-width: 96px; }
+  .roster-subject-name { max-width: 82px; }
+  .roster-table .icon-btn { width: 26px; height: 26px; font-size: 14px; }
+}
+
+.cell-input {
+  width: 100%; min-width: 64px; border: 1.5px solid transparent; background: transparent; color: var(--text);
+  font: inherit; font-size: 13.5px; padding: 8px; border-radius: 8px;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+.cell-input:hover { background: var(--surface); }
+.cell-input:focus {
+  outline: none; background: var(--bg-elevated); border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255,130,1,0.14);
+}
+.cell-input.num { text-align: right; font-family: var(--font-mono); }
+select.cell-input { appearance: none; -webkit-appearance: none; cursor: pointer; }
+.cell-input:disabled { color: var(--text-tertiary); cursor: not-allowed; }
+.cell-input:disabled:hover { background: transparent; }
+select.cell-input:disabled { cursor: not-allowed; }
+
+.icon-btn {
+  width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent;
+  color: var(--text-tertiary); font-size: 15px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.icon-btn:hover { background: rgba(217,48,37,0.12); color: var(--danger); }
+.icon-btn.move-btn:hover { background: var(--surface-2); color: var(--text); }
+.icon-btn.move-btn:disabled { opacity: 0.25; pointer-events: none; }
+.icon-btn.edit-btn:hover { background: rgba(255,130,1,0.14); color: var(--accent-ink); }
+[data-theme="dark"] .icon-btn.edit-btn:hover { color: #FFC98A; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border-radius: var(--radius-md); padding: 12px 18px; font-size: 14px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer;
+  transition: transform var(--dur-fast), background var(--dur-fast); min-height: 44px;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:active { transform: scale(0.97); }
+.btn-accent { background: var(--accent); border-color: transparent; color: #1a1200; box-shadow: 0 8px 20px -8px rgba(255,130,1,0.6); }
+.btn-accent:hover { filter: brightness(1.05); background: var(--accent); }
+.btn-sm { min-height: 36px; padding: 8px 14px; font-size: 13px; }
+
+.gen-add-btn { margin-top: 12px; border-style: dashed; border-color: var(--border-strong); font-weight: 600; color: var(--text-secondary); }
+.gen-add-btn:hover { color: var(--text); border-color: var(--accent); }
+.gen-add-btn-full { display: flex; width: 100%; margin: 0 0 16px; border-style: solid; }
+.gen-add-btn-full[hidden] { display: none; }
+
+.gen-tabs { display: inline-flex; padding: 4px; background: var(--surface); border-radius: 100px; margin-bottom: 16px; gap: 2px; }
+.gen-tab { border: none; background: transparent; color: var(--text-secondary); font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 100px; cursor: pointer; }
+.gen-tab.active { background: var(--bg-elevated); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+.gen-paste-area {
+  width: 100%; min-height: 220px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: var(--radius-md); padding: 12px 14px; font-family: var(--font-mono); font-size: 13px; line-height: 1.6;
+  resize: none; overflow: hidden;
+}
+.gen-paste-area:focus { outline: none; border-color: var(--accent); background: var(--bg-elevated); box-shadow: 0 0 0 4px rgba(255,130,1,0.14); }
+
+/* Paste box breaks out of the section's normal inset (like the roster table does)
+   so it gets extra width instead of being squeezed by 24px of padding on each side. */
+.gen-paste-wrap { padding-left: 8px; padding-right: 8px; }
+@media (max-width: 480px) { .gen-paste-wrap { padding-left: 6px; padding-right: 6px; } }
+
+.paste-import-summary {
+  border-radius: var(--radius-md); padding: 10px 14px; margin: 0 0 12px; font-size: 13px; font-weight: 500;
+  display: flex; flex-direction: column; gap: 4px;
+  background: rgba(46,160,67,0.08); border: 1px solid rgba(46,160,67,0.25); color: var(--text);
+}
+.paste-import-summary.has-issues { background: rgba(217,48,37,0.06); border-color: rgba(217,48,37,0.22); }
+.paste-import-summary .summary-line { display: flex; align-items: flex-start; gap: 6px; }
+.paste-import-summary .summary-detail { font-size: 12px; color: var(--text-tertiary); line-height: 1.5; }
+
+.save-indicator {
+  font-size: 12px; font-weight: 600; color: var(--text-tertiary); display: inline-flex; align-items: center; gap: 6px;
+}
+.save-indicator .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-tertiary); }
+.save-indicator.saving .dot { background: var(--accent); }
+.save-indicator.saved .dot { background: #2ea043; }
+
+.validation-list {
+  background: rgba(217,48,37,0.06); border: 1px solid rgba(217,48,37,0.22); border-radius: var(--radius-lg);
+  padding: 14px 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 6px;
+}
+.validation-item { font-size: 13px; color: var(--danger); display: flex; align-items: flex-start; gap: 8px; font-weight: 500; }
+.validation-item::before { content: "•"; font-weight: 800; }
+
+.gen-export-block { margin-bottom: 18px; }
+.gen-export-block:last-child { margin-bottom: 0; }
+.gen-export-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+.gen-export-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--text-tertiary); }
+.gen-export-actions { display: flex; gap: 8px; }
+.gen-export-actions .btn { min-height: 36px; padding: 8px 14px; font-size: 13px; }
+.gen-copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+.gen-json-preview {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px;
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--text);
+  max-height: 340px; overflow: auto; white-space: pre; margin: 0;
+}
+
+/* Student summary row */
+.student-row { cursor: pointer; transition: background var(--dur-fast); }
+.student-row:hover td { background: var(--surface); }
+
+/* Modal — sized and styled like an actual result sheet, not a cramped box */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100; background: var(--scrim);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 0; opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-med) var(--ease-out);
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+@media (min-width: 720px) {
+  .modal-overlay { align-items: center; padding: 24px; }
+}
+
+.modal-card {
+  background: var(--bg-elevated); width: 100%; max-width: 760px;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  height: 94dvh; display: flex; flex-direction: column;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.25);
+  transform: translateY(24px); transition: transform var(--dur-med) var(--ease-spring);
+}
+.modal-overlay.open .modal-card { transform: translateY(0); }
+@media (min-width: 720px) {
+  .modal-card { border-radius: var(--radius-xl); height: auto; max-height: 90vh; }
+}
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.modal-title { font-family: var(--font-display); font-size: 18px; font-weight: 800; margin: 0; }
+.modal-close-btn {
+  width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--surface);
+  color: var(--text-secondary); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.modal-close-btn:hover { background: var(--surface-2); color: var(--text); }
+
+.modal-body { padding: 22px 24px; overflow-y: auto; flex: 1; }
+.modal-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+@media (max-width: 480px) { .modal-field-row { grid-template-columns: 1fr; } }
+
+.modal-marks-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
+  color: var(--text-tertiary); margin: 4px 0 10px;
+}
+
+/* Simple entry-sheet table: one row per subject, Subject + Marks only. No swipe needed. */
+.modal-marks-table { width: 100%; border-collapse: collapse; }
+.modal-marks-table thead th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-tertiary); font-weight: 700; padding: 10px 6px; border-bottom: 1px solid var(--border);
+}
+.modal-marks-table thead th.num { text-align: right; }
+.modal-marks-table tbody td { padding: 12px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.modal-marks-table tbody tr:last-child td { border-bottom: none; }
+.mm-subject-cell { display: flex; flex-direction: column; gap: 2px; }
+.mm-subject-code { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-tertiary); font-weight: 600; }
+.mm-subject-name { font-weight: 600; font-size: 14px; }
+.mm-mark-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.mm-mark-input {
+  width: 96px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: 10px; padding: 9px 10px; font-family: var(--font-mono); font-size: 14.5px; font-weight: 700; text-align: right;
+}
+.mm-mark-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,130,1,0.14); background: var(--bg-elevated); }
+.mm-full { font-size: 10.5px; color: var(--text-tertiary); font-family: var(--font-mono); }
+
+/* Reused by the students roster table below */
+.table-scroll-hint {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 11.5px; color: var(--text-tertiary); margin: 10px 0 0; font-weight: 500;
+}
+.table-scroll-hint svg { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.7; }
+
+.modal-footer {
+  display: flex; align-items: stretch; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--border); flex-shrink: 0;
+  padding-bottom: calc(16px + var(--safe-bottom));
+}
+.modal-footer-actions { display: flex; gap: 10px; flex: 1; }
+.modal-footer-actions .btn { flex: 1; }
+.modal-delete-btn {
+  flex: 0 0 auto; width: 46px; padding: 0; border-radius: var(--radius-md);
+  border: 1.5px solid var(--border); background: var(--surface); color: var(--danger);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-delete-btn svg { width: 19px; height: 19px; }
+.modal-delete-btn:hover { background: rgba(217,48,37,0.12); border-color: rgba(217,48,37,0.3); }
+
+@media (max-width: 480px) { .card { padding: 18px; } }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <header class="topbar">
+    <a class="brand" href="../index.html" aria-label="Result Portal home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9.5 12 5l10 4.5-10 4.5-10-4.5Z"/><path d="M6 11.6v4.5c0 1 2.7 2.4 6 2.4s6-1.4 6-2.4v-4.5"/><path d="M21 9.5v6"/></svg>
+      </span>
+      <span>Result Portal</span>
+    </a>
+    <span class="gen-badge">Admin Tool</span>
+  </header>
+
+  <main>
+    <div class="gen-wrap">
+
+      <div class="gen-intro">
+        <h1 class="gen-title">Generate Result JSON</h1>
+        <p class="gen-sub">Build a new exam result file — and its matching manifest.json entry — without hand-editing JSON. Runs entirely in your browser; nothing is uploaded anywhere.</p>
+        <span class="save-indicator" id="saveIndicator" aria-live="polite"><span class="dot"></span><span id="saveIndicatorText">Not saved yet</span></span>
+      </div>
+
+      <div class="draft-banner" id="draftBanner" hidden>
+        <span>Draft restored from your last session.</span>
+        <button class="btn btn-sm" id="clearDraftBtn" type="button">Start Fresh</button>
+      </div>
+
+      <!-- Exam details -->
+      <section class="card gen-section">
+        <h2 class="section-title">Exam Details</h2>
+        <div class="gen-grid-2">
+          <div class="field">
+            <label class="field-label" for="genExamName">Exam Name</label>
+            <input class="field-input" id="genExamName" type="text" placeholder="e.g. Test Examination 2">
+          </div>
+          <div class="field">
+            <label class="field-label" for="genExamId">Exam ID <span class="gen-hint">(used in filename)</span></label>
+            <input class="field-input" id="genExamId" type="text" placeholder="e.g. test-2">
+          </div>
+          <div class="field">
+            <label class="field-label" for="genAcademicYear">Academic Year</label>
+            <input class="field-input" id="genAcademicYear" type="text" list="genAcademicYearList" placeholder="e.g. Honours 2nd Year">
+            <datalist id="genAcademicYearList">
+              <option value="Honours 1st Year"></option>
+              <option value="Honours 2nd Year"></option>
+              <option value="Honours 3rd Year"></option>
+              <option value="Honours 4th Year"></option>
+            </datalist>
+          </div>
+          <div class="field">
+            <label class="field-label" for="genExamYear">Exam Year</label>
+            <input class="field-input" id="genExamYear" type="number" placeholder="2026">
+          </div>
+          <div class="field">
+            <label class="field-label" for="genExamType">Manifest Type</label>
+            <div class="field-select-wrap">
+              <select class="field-select" id="genExamType">
+                <option value="test">test (SGPA calculated)</option>
+                <option value="incourse">incourse (no SGPA)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Subjects -->
+      <section class="card gen-section">
+        <h2 class="section-title">
+          Subjects <span class="count-badge" id="subjCount">0</span>
+        </h2>
+        <p class="gen-help">The Test Examination 1 subjects are loaded by default and can't be deleted, but you can reorder them with the arrows or add extra subjects of your own.</p>
+        <div class="table-card">
+          <table class="gen-editable-table" id="subjectsTable">
+            <thead>
+              <tr>
+                <th style="min-width:110px">Code</th>
+                <th style="min-width:180px">Name</th>
+                <th class="num">Credit</th>
+                <th style="min-width:100px">Type</th>
+                <th class="num">Full Marks</th>
+                <th class="gen-col-action"></th>
+              </tr>
+            </thead>
+            <tbody id="subjectsBody"></tbody>
+          </table>
+        </div>
+        <button class="btn gen-add-btn gen-add-btn-full" id="addSubjectBtn" type="button">+ Add Subject</button>
+      </section>
+
+      <!-- Students -->
+      <section class="card gen-section roster-section">
+        <div class="gen-section-inset">
+          <h2 class="section-title">
+            Students <span class="count-badge" id="studentCount">0</span>
+          </h2>
+
+          <div class="gen-tabs" role="tablist">
+            <button class="gen-tab active" data-tab="manual" type="button" role="tab" aria-selected="true" aria-controls="panelManual" id="tabManual">Manual Entry</button>
+            <button class="gen-tab" data-tab="paste" type="button" role="tab" aria-selected="false" aria-controls="panelPaste" id="tabPaste">Paste / Bulk Import</button>
+          </div>
+
+          <button class="btn btn-accent gen-add-btn gen-add-btn-full" id="addStudentBtn" type="button">+ Add Student</button>
+        </div>
+
+        <div id="panelManual" role="tabpanel" aria-labelledby="tabManual">
+          <div class="gen-section-inset">
+            <p class="gen-help">Tap a student to open their full entry sheet. Below, swipe the table sideways to see every subject's marks.</p>
+          </div>
+          <div class="roster-card">
+            <table class="roster-table" id="studentsTable">
+              <thead id="studentsHead"></thead>
+              <tbody id="studentsBody"></tbody>
+            </table>
+          </div>
+          <div class="gen-section-inset">
+            <p class="table-scroll-hint" id="rosterScrollHint" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>
+              Swipe to see the rest of the subjects
+            </p>
+          </div>
+        </div>
+
+        <div id="panelPaste" role="tabpanel" aria-labelledby="tabPaste" hidden>
+          <div class="gen-section-inset">
+            <p class="gen-help">One student per line: <code>registration, name, mark1, mark2, ...</code> — marks in the same order as the Subjects table above. Leave a mark blank to default it to 0. Names with a comma in them can be wrapped in quotes.</p>
+          </div>
+          <div class="gen-paste-wrap">
+            <textarea class="gen-paste-area" id="pasteArea" rows="10" placeholder="2023223411, Rafiq Islam, 70, 65, 60, 68, 40, 82
+2023223412, Farhana Yeasmin, 66, 60, 55, 62, 35, 74"></textarea>
+            <div class="paste-import-summary" id="pasteImportSummary" hidden></div>
+            <button class="btn btn-accent gen-add-btn gen-add-btn-full" id="parsePasteBtn" type="button">Add to Students</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Validation -->
+      <div class="validation-list" id="validationList" hidden></div>
+
+      <!-- Export -->
+      <section class="card gen-section">
+        <h2 class="section-title">Export</h2>
+        <p class="gen-help">Save the first box as <code id="pathHint">data/&lt;year&gt;/&lt;exam-id&gt;.json</code>. Then paste the second box into the matching year block inside <code>data/manifest.json</code>.</p>
+
+        <div class="gen-export-block">
+          <div class="gen-export-head">
+            <span class="gen-export-label">1 · Exam JSON → save as file above</span>
+            <div class="gen-export-actions">
+              <button class="btn gen-copy-btn" id="copyJsonBtn" type="button">Copy</button>
+              <button class="btn btn-accent" id="downloadJsonBtn" type="button">Download .json</button>
+            </div>
+          </div>
+          <pre class="gen-json-preview" id="jsonPreview"></pre>
+        </div>
+
+        <div class="gen-export-block">
+          <div class="gen-export-head">
+            <span class="gen-export-label">2 · manifest.json entry → paste into data/manifest.json</span>
+            <div class="gen-export-actions">
+              <button class="btn gen-copy-btn" id="copyManifestBtn" type="button">Copy</button>
+            </div>
+          </div>
+          <pre class="gen-json-preview" id="manifestPreview"></pre>
+        </div>
+
+        <div class="gen-export-block">
+          <div class="gen-export-head">
+            <span class="gen-export-label">Or merge it automatically</span>
+          </div>
+          <p class="gen-help">Paste your current <code>data/manifest.json</code> below and this will insert the entry above into the right year block for you — no manual editing needed.</p>
+          <div class="gen-paste-wrap">
+            <textarea class="gen-paste-area" id="manifestMergeInput" rows="8" placeholder="Paste your existing data/manifest.json here"></textarea>
+            <div class="paste-import-summary" id="manifestMergeStatus" hidden></div>
+            <button class="btn btn-accent gen-add-btn gen-add-btn-full" id="mergeManifestBtn" type="button">Merge Entry Into manifest.json</button>
+          </div>
+        </div>
+
+        <div class="gen-export-block" id="manifestMergedBlock" hidden>
+          <div class="gen-export-head">
+            <span class="gen-export-label">Merged manifest.json → save over your existing file</span>
+            <div class="gen-export-actions">
+              <button class="btn gen-copy-btn" id="copyMergedManifestBtn" type="button">Copy</button>
+              <button class="btn btn-accent" id="downloadMergedManifestBtn" type="button">Download .json</button>
+            </div>
+          </div>
+          <pre class="gen-json-preview" id="mergedManifestPreview"></pre>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- Student entry modal — full result-sheet style, one row per subject -->
+<div class="modal-overlay" id="studentModalOverlay">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalTitle">Add Student</h3>
+      <button class="modal-close-btn" id="modalCloseBtn" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field-row">
+        <div class="field">
+          <label class="field-label" for="modalReg">Registration Number</label>
+          <input class="field-input" id="modalReg" type="text" placeholder="2023223411">
+        </div>
+        <div class="field">
+          <label class="field-label" for="modalName">Student Name</label>
+          <input class="field-input" id="modalName" type="text" placeholder="Full name">
+        </div>
+      </div>
+      <div class="modal-marks-label">Marks</div>
+      <table class="modal-marks-table">
+        <thead><tr><th>Subject</th><th class="num">Marks</th></tr></thead>
+        <tbody id="modalMarksBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn modal-delete-btn" id="modalDeleteBtn" type="button" title="Delete student" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-1 0v12a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V7h8Z"/><path d="M10 11v6M14 11v6"/></svg>
+      </button>
+      <div class="modal-footer-actions">
+        <button class="btn" id="modalCancelBtn" type="button">Cancel</button>
+        <button class="btn btn-accent" id="modalSaveBtn" type="button">Save Student</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = "srpGenerateDraftV1";
+
+  const DEFAULT_SUBJECTS = [
+    { code: "223701", name: "Calculus - II", credit: 4, type: "theory", fullMarks: 80 },
+    { code: "223703", name: "Ordinary Differential Equations", credit: 4, type: "theory", fullMarks: 80 },
+    { code: "223705", name: "Computer Programming - Fortran", credit: 4, type: "theory", fullMarks: 80 },
+    { code: "222707", name: "Physics - III", credit: 4, type: "theory", fullMarks: 80 },
+    { code: "222807", name: "General Chemistry - II", credit: 4, type: "theory", fullMarks: 80 },
+    { code: "222809", name: "Environmental Chemistry", credit: 2, type: "theory", fullMarks: 50 },
+    { code: "221109", name: "English Compulsory", credit: 0, type: "theory", fullMarks: 100 }
+  ];
+
+  const state = {
+    examName: "",
+    examId: "",
+    examIdTouched: false,
+    academicYear: "Honours 2nd Year",
+    examYear: new Date().getFullYear(),
+    examType: "test",
+    subjects: [],
+    students: []
+  };
+
+  let activeTab = "manual";
+  let modalEditingId = null;
+  let modalMarksDraft = {};
+  let saveTimer = null;
+  let lastFocusedBeforeModal = null;
+
+  const qs = (sel, root = document) => root.querySelector(sel);
+  const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+  function slugify(str) {
+    return String(str).toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "");
+  }
+  function uid() { return Math.random().toString(36).slice(2, 9); }
+  function mkDefaultSubject(s) { return { _id: uid(), locked: true, editable: false, code: s.code, name: s.name, credit: s.credit, type: s.type, fullMarks: s.fullMarks }; }
+  function emptySubject() { return { _id: uid(), locked: false, editable: true, code: "", name: "", credit: 4, type: "theory", fullMarks: 100 }; }
+  function emptyStudent() { return { _id: uid(), registration: "", name: "", marks: {} }; }
+
+  function escapeHtml(str) {
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+  function escapeAttr(str) { return escapeHtml(String(str ?? "")).replace(/"/g, "&quot;"); }
+
+  // ---------- local storage persistence ----------
+
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    setSaveIndicator("saving", "Saving…");
+    saveTimer = setTimeout(saveDraftToStorage, 350);
+  }
+
+  function saveDraftToStorage() {
+    try {
+      const payload = {
+        examName: state.examName, examId: state.examId, examIdTouched: state.examIdTouched,
+        academicYear: state.academicYear, examYear: state.examYear, examType: state.examType,
+        subjects: state.subjects, students: state.students, savedAt: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      setSaveIndicator("saved", "Saved " + formatTime(payload.savedAt));
+    } catch (e) {
+      setSaveIndicator("", "Couldn't save draft (storage unavailable)");
+    }
+  }
+
+  function setSaveIndicator(cls, text) {
+    const el = qs("#saveIndicator");
+    if (!el) return;
+    el.className = "save-indicator" + (cls ? " " + cls : "");
+    qs("#saveIndicatorText").textContent = text;
+  }
+
+  function formatTime(ms) {
+    const d = new Date(ms);
+    let h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, "0");
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return h + ":" + m + " " + ampm;
+  }
+
+  function loadDraftFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) { return null; }
+  }
+
+  function clearDraftFromStorage() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+  }
+
+  // ---------- init ----------
+
+  function init() {
+    const draft = loadDraftFromStorage();
+    const hasDraftContent = draft && (
+      (draft.examName && draft.examName.trim()) ||
+      (draft.subjects && draft.subjects.length) ||
+      (draft.students && draft.students.length)
+    );
+
+    if (hasDraftContent) {
+      state.examName = draft.examName || "";
+      state.examId = draft.examId || "";
+      state.examIdTouched = !!draft.examIdTouched;
+      state.academicYear = draft.academicYear || "Honours 2nd Year";
+      state.examYear = draft.examYear || new Date().getFullYear();
+      state.examType = draft.examType || "test";
+      state.subjects = (draft.subjects && draft.subjects.length) ? draft.subjects : DEFAULT_SUBJECTS.map(mkDefaultSubject);
+      state.students = draft.students || [];
+      qs("#draftBanner").hidden = false;
+      if (draft.savedAt) setSaveIndicator("saved", "Saved " + formatTime(draft.savedAt));
+    } else {
+      state.subjects = DEFAULT_SUBJECTS.map(mkDefaultSubject);
+      state.students = [];
+    }
+
+    qs("#genExamName").value = state.examName;
+    qs("#genExamId").value = state.examId;
+    qs("#genAcademicYear").value = state.academicYear;
+    qs("#genExamYear").value = state.examYear;
+    qs("#genExamType").value = state.examType;
+
+    wireExamFields();
+    wireSubjects();
+    wireStudents();
+    wireTabs();
+    setActiveTab(activeTab);
+    wireExport();
+    wireManifestMerge();
+    wireModal();
+    wireDraftBanner();
+
+    renderSubjects();
+    renderStudents();
+    renderAll();
+  }
+
+  function wireDraftBanner() {
+    qs("#clearDraftBtn").addEventListener("click", () => {
+      const ok = confirm("This clears your saved draft and starts over with the default subjects. Continue?");
+      if (!ok) return;
+      clearDraftFromStorage();
+      window.location.reload();
+    });
+  }
+
+  function wireExamFields() {
+    qs("#genExamName").addEventListener("input", (e) => {
+      state.examName = e.target.value;
+      if (!state.examIdTouched) {
+        const auto = slugify(state.examName);
+        state.examId = auto;
+        qs("#genExamId").value = auto;
+      }
+      if (/test/i.test(state.examName)) {
+        state.examType = "test";
+        qs("#genExamType").value = "test";
+      }
+      renderAll();
+    });
+
+    qs("#genExamId").addEventListener("input", (e) => {
+      state.examIdTouched = true;
+      state.examId = slugify(e.target.value);
+      renderAll();
+    });
+
+    qs("#genAcademicYear").addEventListener("input", (e) => {
+      state.academicYear = e.target.value;
+      renderAll();
+    });
+
+    qs("#genExamYear").addEventListener("input", (e) => {
+      state.examYear = parseInt(e.target.value, 10) || "";
+      renderAll();
+    });
+
+    qs("#genExamType").addEventListener("change", (e) => {
+      state.examType = e.target.value;
+      renderAll();
+    });
+  }
+
+  // ---------- subjects ----------
+
+  function wireSubjects() {
+    qs("#addSubjectBtn").addEventListener("click", () => {
+      state.subjects.push(emptySubject());
+      renderSubjects();
+      renderAll();
+    });
+
+    const body = qs("#subjectsBody");
+
+    body.addEventListener("input", (e) => {
+      const row = e.target.closest("tr");
+      if (!row) return;
+      const sub = state.subjects.find(s => s._id === row.dataset.id);
+      if (!sub) return;
+      const field = e.target.dataset.field;
+      if (field === "credit" || field === "fullMarks") {
+        sub[field] = e.target.value === "" ? "" : parseFloat(e.target.value);
+      } else {
+        sub[field] = e.target.value;
+      }
+      renderAll();
+    });
+
+    body.addEventListener("change", (e) => {
+      if (e.target.dataset.field === "type") {
+        const row = e.target.closest("tr");
+        const sub = state.subjects.find(s => s._id === row.dataset.id);
+        if (sub) sub.type = e.target.value;
+        renderAll();
+      }
+    });
+
+    body.addEventListener("click", (e) => {
+      const unlockBtn = e.target.closest(".js-unlock-subject");
+      if (unlockBtn) {
+        const row = unlockBtn.closest("tr");
+        const sub = state.subjects.find(s => s._id === row.dataset.id);
+        if (sub) sub.editable = true;
+        renderSubjects();
+        return;
+      }
+      const removeBtn = e.target.closest(".js-remove-subject");
+      if (removeBtn) {
+        const row = removeBtn.closest("tr");
+        state.subjects = state.subjects.filter(s => s._id !== row.dataset.id);
+        renderSubjects();
+        renderAll();
+        return;
+      }
+      const moveBtn = e.target.closest(".move-btn");
+      if (moveBtn) {
+        const row = moveBtn.closest("tr");
+        moveSubject(row.dataset.id, moveBtn.dataset.dir);
+      }
+    });
+  }
+
+  function moveSubject(id, dir) {
+    const idx = state.subjects.findIndex(s => s._id === id);
+    if (idx < 0) return;
+    const swapIdx = dir === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= state.subjects.length) return;
+    const tmp = state.subjects[idx];
+    state.subjects[idx] = state.subjects[swapIdx];
+    state.subjects[swapIdx] = tmp;
+    renderSubjects();
+    renderAll();
+  }
+
+  function renderSubjects() {
+    const body = qs("#subjectsBody");
+    body.innerHTML = "";
+    state.subjects.forEach((sub, idx) => {
+      const isFirst = idx === 0;
+      const isLast = idx === state.subjects.length - 1;
+      const editable = sub.editable !== undefined ? sub.editable : !sub.locked;
+      const dis = editable ? "" : " disabled";
+      const tr = document.createElement("tr");
+      tr.dataset.id = sub._id;
+      tr.innerHTML =
+        '<td><input class="cell-input" data-field="code" value="' + escapeAttr(sub.code) + '" placeholder="221201"' + dis + '></td>' +
+        '<td><input class="cell-input" data-field="name" value="' + escapeAttr(sub.name) + '" placeholder="Real Analysis"' + dis + '></td>' +
+        '<td><input class="cell-input num" type="number" data-field="credit" value="' + sub.credit + '"' + dis + '></td>' +
+        '<td><select class="cell-input" data-field="type"' + dis + '>' +
+          '<option value="theory"' + (sub.type === "theory" ? " selected" : "") + '>Theory</option>' +
+          '<option value="practical"' + (sub.type === "practical" ? " selected" : "") + '>Practical</option>' +
+        '</select></td>' +
+        '<td><input class="cell-input num" type="number" data-field="fullMarks" value="' + sub.fullMarks + '"' + dis + '></td>' +
+        '<td><div class="row-actions">' +
+          '<button class="icon-btn move-btn" type="button" data-dir="up"' + (isFirst ? " disabled" : "") + ' title="Move up">▲</button>' +
+          '<button class="icon-btn move-btn" type="button" data-dir="down"' + (isLast ? " disabled" : "") + ' title="Move down">▼</button>' +
+          (sub.locked
+            ? (editable
+                ? '<span class="lock-note" title="Default subject — can\'t be removed">🔒</span>'
+                : '<button class="icon-btn edit-btn js-unlock-subject" type="button" title="Unlock to edit this subject">✎</button>')
+            : '<button class="icon-btn js-remove-subject" type="button" title="Remove subject">×</button>') +
+        '</div></td>';
+      body.appendChild(tr);
+    });
+    qs("#subjCount").textContent = String(state.subjects.length);
+  }
+
+  // ---------- students ----------
+
+  function autoGrowTextarea(el) {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }
+
+  function autoGrowPasteArea() {
+    autoGrowTextarea(qs("#pasteArea"));
+  }
+
+  // Splits one paste line into fields. Supports "quoted, fields" so a comma
+  // inside a quoted name doesn't get mistaken for a column separator, and
+  // collapses stray double-spaces so pasted data comes in clean.
+  function parseCsvLine(line) {
+    const fields = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = false;
+        } else {
+          cur += ch;
+        }
+      } else if (ch === '"' && cur.trim() === "") {
+        inQuotes = true;
+        cur = ""; // discard any leading whitespace collected before the opening quote
+      } else if (ch === ",") {
+        fields.push(cur);
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    fields.push(cur);
+    return fields.map(f => f.trim().replace(/\s+/g, " "));
+  }
+
+  function showPasteImportSummary(added, malformed, duplicates) {
+    const box = qs("#pasteImportSummary");
+    if (!added && !malformed.length && !duplicates.length) {
+      box.hidden = true;
+      box.innerHTML = "";
+      return;
+    }
+    const hasIssues = malformed.length > 0 || duplicates.length > 0;
+    box.hidden = false;
+    box.classList.toggle("has-issues", hasIssues);
+
+    let html = '<div class="summary-line">' +
+      (added ? (added + " student" + (added === 1 ? "" : "s") + " added.") : "No new students were added.") +
+      '</div>';
+
+    if (malformed.length) {
+      html += '<div class="summary-line">' + malformed.length + " line" + (malformed.length === 1 ? "" : "s") +
+        " skipped — need at least a registration number and a name (line" + (malformed.length === 1 ? "" : "s") + " " +
+        malformed.join(", ") + ").</div>";
+    }
+    if (duplicates.length) {
+      const list = duplicates.map(d => "line " + d.line + ' ("' + escapeHtml(d.registration) + '")').join(", ");
+      html += '<div class="summary-line">' + duplicates.length + " duplicate registration" + (duplicates.length === 1 ? "" : "s") +
+        " skipped: " + list + ".</div>";
+    }
+    if (hasIssues) {
+      html += '<div class="summary-detail">The skipped lines are still in the box above — fix or remove them, then click Add to Students again.</div>';
+    }
+    box.innerHTML = html;
+  }
+
+  function wireStudents() {
+    qs("#addStudentBtn").addEventListener("click", () => openStudentModal(null));
+
+    const pasteAreaEl = qs("#pasteArea");
+    pasteAreaEl.addEventListener("input", () => {
+      autoGrowPasteArea();
+      const summary = qs("#pasteImportSummary");
+      if (summary && !summary.hidden) { summary.hidden = true; summary.innerHTML = ""; }
+    });
+    pasteAreaEl.addEventListener("paste", () => setTimeout(autoGrowPasteArea, 0));
+    autoGrowPasteArea();
+
+    qs("#parsePasteBtn").addEventListener("click", () => {
+      const area = qs("#pasteArea");
+      const rawLines = area.value.split("\n");
+      const existingRegs = new Set(state.students.map(s => s.registration).filter(Boolean));
+      const batchRegs = new Set();
+      const remainingLines = [];
+      const malformed = [];
+      const duplicates = [];
+      let addedCount = 0;
+
+      rawLines.forEach((rawLine, idx) => {
+        const line = rawLine.trim();
+        if (!line) return;
+        const lineNo = idx + 1;
+        const parts = parseCsvLine(line);
+
+        if (parts.length < 2 || !parts[0] || !parts[1]) {
+          malformed.push(lineNo);
+          remainingLines.push(rawLine);
+          return;
+        }
+
+        const [registration, name, ...marks] = parts;
+        if (existingRegs.has(registration) || batchRegs.has(registration)) {
+          duplicates.push({ line: lineNo, registration });
+          remainingLines.push(rawLine);
+          return;
+        }
+
+        const student = emptyStudent();
+        student.registration = registration;
+        student.name = name;
+        state.subjects.forEach((sub, i) => {
+          if (marks[i] !== undefined && marks[i] !== "") {
+            const n = parseFloat(marks[i]);
+            if (!Number.isNaN(n)) student.marks[sub.code] = n;
+          }
+        });
+        state.students.push(student);
+        batchRegs.add(registration);
+        addedCount++;
+      });
+
+      area.value = remainingLines.join("\n");
+      autoGrowPasteArea();
+      renderStudents();
+      renderAll();
+      showPasteImportSummary(addedCount, malformed, duplicates);
+
+      if (!remainingLines.length && addedCount) {
+        setActiveTab("manual");
+      }
+    });
+
+    const body = qs("#studentsBody");
+
+    body.addEventListener("click", (e) => {
+      const row = e.target.closest(".student-row");
+      if (row) openStudentModal(row.dataset.id);
+    });
+  }
+
+  function renderStudents() {
+    const head = qs("#studentsHead");
+    const body = qs("#studentsBody");
+    const subjects = state.subjects;
+
+    head.innerHTML =
+      '<tr>' +
+        '<th class="roster-col-reg">Reg. No.</th>' +
+        '<th class="roster-col-name">Name</th>' +
+        subjects.map(sub => '<th class="roster-col-subject">' + escapeHtml(sub.code || "—") + '</th>').join("") +
+        '<th class="roster-col-actions"></th>' +
+      '</tr>';
+
+    if (!state.students.length) {
+      body.innerHTML = '<tr class="student-empty-row"><td colspan="' + (subjects.length + 3) + '">No students yet — tap "+ Add Student" or use Bulk Import.</td></tr>';
+      qs("#studentCount").textContent = "0";
+      qs("#rosterScrollHint").hidden = true;
+      return;
+    }
+
+    body.innerHTML = "";
+    state.students.forEach(student => {
+      const tr = document.createElement("tr");
+      tr.className = "student-row";
+      tr.dataset.id = student._id;
+
+      const subjectCells = subjects.map(sub => {
+        const raw = student.marks[sub.code];
+        const hasMark = raw !== undefined && raw !== "";
+        const full = sub.fullMarks === "" || sub.fullMarks === undefined ? 100 : sub.fullMarks;
+        const markText = hasMark ? (raw + " / " + full) : "–";
+        return '<td class="roster-col-subject"><div class="roster-subject-cell">' +
+          '<span class="roster-subject-name">' + escapeHtml(sub.name || "Untitled") + '</span>' +
+          '<span class="roster-mark-value' + (hasMark ? "" : " empty") + '">' + markText + '</span>' +
+        '</div></td>';
+      }).join("");
+
+      tr.innerHTML =
+        '<td class="roster-col-reg"><span class="roster-reg-value" title="' + escapeAttr(student.registration) + '">' + (escapeHtml(student.registration) || "—") + '</span></td>' +
+        '<td class="roster-col-name"><span class="roster-name-value" title="' + escapeAttr(student.name) + '">' + (escapeHtml(student.name) || "Untitled student") + '</span></td>' +
+        subjectCells +
+        '<td class="roster-col-actions"><div class="row-actions">' +
+          '<button class="icon-btn edit-btn js-open-student" type="button" title="Edit entry">✎</button>' +
+        '</div></td>';
+      body.appendChild(tr);
+    });
+    qs("#studentCount").textContent = String(state.students.length);
+
+    const card = qs(".roster-card");
+    qs("#rosterScrollHint").hidden = !(subjects.length && card.scrollWidth > card.clientWidth + 1);
+  }
+
+  // ---------- modal ----------
+
+  function wireModal() {
+    qs("#modalCloseBtn").addEventListener("click", closeStudentModal);
+    qs("#modalCancelBtn").addEventListener("click", closeStudentModal);
+    qs("#studentModalOverlay").addEventListener("click", (e) => {
+      if (e.target === qs("#studentModalOverlay")) closeStudentModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (!qs("#studentModalOverlay").classList.contains("open")) return;
+      if (e.key === "Escape") { closeStudentModal(); return; }
+      if (e.key === "Tab") trapModalFocus(e);
+    });
+    qs("#modalSaveBtn").addEventListener("click", saveStudentModal);
+    qs("#modalDeleteBtn").addEventListener("click", () => {
+      if (!modalEditingId) return;
+      const student = state.students.find(s => s._id === modalEditingId);
+      const label = (student && student.name) ? student.name : "this student";
+      if (!confirm('Remove ' + label + '? This can\'t be undone.')) return;
+      state.students = state.students.filter(s => s._id !== modalEditingId);
+      closeStudentModal();
+      renderStudents();
+      renderAll();
+    });
+
+    qs("#modalMarksBody").addEventListener("input", (e) => {
+      const code = e.target.dataset.code;
+      if (!code) return;
+      const v = e.target.value;
+      if (v === "") delete modalMarksDraft[code];
+      else modalMarksDraft[code] = parseFloat(v);
+    });
+  }
+
+  function openStudentModal(studentId) {
+    if (!state.subjects.length || state.subjects.every(s => !s.code.trim())) {
+      alert("Add at least one subject with a code before entering student marks.");
+      return;
+    }
+
+    modalEditingId = studentId;
+    let regVal = "", nameVal = "";
+    modalMarksDraft = {};
+
+    if (studentId) {
+      const student = state.students.find(s => s._id === studentId);
+      if (student) {
+        regVal = student.registration;
+        nameVal = student.name;
+        modalMarksDraft = { ...student.marks };
+      }
+      qs("#modalTitle").textContent = "Edit Student";
+      qs("#modalDeleteBtn").hidden = false;
+    } else {
+      qs("#modalTitle").textContent = "Add Student";
+      qs("#modalDeleteBtn").hidden = true;
+    }
+
+    qs("#modalReg").value = regVal;
+    qs("#modalName").value = nameVal;
+
+    const tbody = qs("#modalMarksBody");
+    tbody.innerHTML = "";
+    state.subjects.forEach(sub => {
+      const label = escapeHtml(sub.name || "Untitled subject");
+      const code = escapeHtml(sub.code || "—");
+      const full = sub.fullMarks === "" || sub.fullMarks === undefined ? 100 : sub.fullMarks;
+      const val = modalMarksDraft[sub.code] !== undefined ? modalMarksDraft[sub.code] : "";
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td><div class="mm-subject-cell"><span class="mm-subject-code">' + code + '</span><span class="mm-subject-name">' + label + '</span></div></td>' +
+        '<td class="num"><div class="mm-mark-wrap">' +
+          '<input class="mm-mark-input" type="number" data-code="' + escapeAttr(sub.code) + '" value="' + val + '" placeholder="0">' +
+          '<span class="mm-full">/ ' + full + '</span>' +
+        '</div></td>';
+      tbody.appendChild(tr);
+    });
+
+    lastFocusedBeforeModal = document.activeElement;
+    qs("#studentModalOverlay").classList.add("open");
+    document.body.style.overflow = "hidden";
+    qs("#modalReg").focus();
+  }
+
+  function closeStudentModal() {
+    qs("#studentModalOverlay").classList.remove("open");
+    document.body.style.overflow = "";
+    modalEditingId = null;
+    modalMarksDraft = {};
+    if (lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === "function") {
+      lastFocusedBeforeModal.focus();
+    }
+    lastFocusedBeforeModal = null;
+  }
+
+  function trapModalFocus(e) {
+    const overlay = qs("#studentModalOverlay");
+    const focusable = qsa('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])', overlay)
+      .filter(el => !el.disabled && el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
+  function saveStudentModal() {
+    const registration = qs("#modalReg").value.trim();
+    const name = qs("#modalName").value.trim();
+
+    if (!registration || !name) {
+      alert("Registration number and name are both required.");
+      return;
+    }
+
+    if (modalEditingId) {
+      const student = state.students.find(s => s._id === modalEditingId);
+      if (student) {
+        student.registration = registration;
+        student.name = name;
+        student.marks = { ...modalMarksDraft };
+      }
+    } else {
+      state.students.push({ _id: uid(), registration, name, marks: { ...modalMarksDraft } });
+    }
+
+    closeStudentModal();
+    renderStudents();
+    renderAll();
+  }
+
+  // ---------- tabs ----------
+
+  function wireTabs() {
+    qsa(".gen-tab").forEach(tab => {
+      tab.addEventListener("click", () => setActiveTab(tab.dataset.tab));
+    });
+  }
+
+  function setActiveTab(name) {
+    activeTab = name;
+    qsa(".gen-tab").forEach(t => {
+      const active = t.dataset.tab === name;
+      t.classList.toggle("active", active);
+      t.setAttribute("aria-selected", String(active));
+    });
+    qs("#panelManual").hidden = name !== "manual";
+    qs("#panelManual").setAttribute("aria-hidden", String(name !== "manual"));
+    qs("#panelPaste").hidden = name !== "paste";
+    qs("#panelPaste").setAttribute("aria-hidden", String(name !== "paste"));
+    // The standalone "+ Add Student" button only makes sense for manual entry —
+    // on the Bulk Import tab, "Add to Students" is the only add action shown.
+    qs("#addStudentBtn").hidden = name !== "manual";
+    if (name === "paste") autoGrowPasteArea();
+  }
+
+  // ---------- build output ----------
+
+  function buildExamObject() {
+    return {
+      examName: state.examName,
+      examYear: state.examYear,
+      academicYear: state.academicYear,
+      subjects: state.subjects.map(s => ({
+        code: s.code,
+        name: s.name,
+        credit: s.credit === "" ? 0 : s.credit,
+        type: s.type,
+        fullMarks: s.fullMarks === "" ? 100 : s.fullMarks
+      })),
+      students: state.students.map(st => ({
+        registration: st.registration,
+        name: st.name,
+        marks: { ...st.marks }
+      }))
+    };
+  }
+
+  function buildManifestEntry() {
+    return {
+      id: state.examId || "exam-id",
+      file: (state.examId || "exam-id") + ".json",
+      examName: state.examName,
+      academicYear: state.academicYear,
+      type: state.examType
+    };
+  }
+
+  function validate() {
+    const issues = [];
+    if (!state.examName.trim()) issues.push("Exam Name is required.");
+    if (!state.examId.trim()) issues.push("Exam ID is required (used for the filename).");
+    if (!state.academicYear.trim()) issues.push("Academic Year is required.");
+    if (!state.examYear) issues.push("Exam Year is required.");
+
+    if (!state.subjects.length) issues.push("Add at least one subject.");
+    const codes = new Set();
+    state.subjects.forEach((s, i) => {
+      if (!s.code.trim()) issues.push("Subject row " + (i + 1) + " is missing a code.");
+      if (!s.name.trim()) issues.push("Subject row " + (i + 1) + " is missing a name.");
+      if (s.code && codes.has(s.code)) issues.push('Duplicate subject code "' + s.code + '".');
+      codes.add(s.code);
+      if (s.fullMarks !== "" && Number(s.fullMarks) <= 0) issues.push("Subject row " + (i + 1) + " (" + (s.name || s.code || "untitled") + ") needs Full Marks greater than 0.");
+      if (s.credit !== "" && Number(s.credit) < 0) issues.push("Subject row " + (i + 1) + " (" + (s.name || s.code || "untitled") + ") can't have a negative credit.");
+    });
+
+    if (!state.students.length) issues.push("Add at least one student.");
+    const regs = new Set();
+    state.students.forEach((st, i) => {
+      if (!st.registration.trim()) issues.push("Student row " + (i + 1) + " is missing a registration number.");
+      if (!st.name.trim()) issues.push("Student row " + (i + 1) + " is missing a name.");
+      if (st.registration && regs.has(st.registration)) issues.push('Duplicate registration "' + st.registration + '".');
+      regs.add(st.registration);
+    });
+
+    return issues;
+  }
+
+  function renderAll() {
+    renderStudents();
+    const examJson = JSON.stringify(buildExamObject(), null, 2);
+    const manifestJson = JSON.stringify(buildManifestEntry(), null, 2);
+    qs("#jsonPreview").textContent = examJson;
+    qs("#manifestPreview").textContent = manifestJson;
+    qs("#pathHint").textContent = "data/" + (state.examYear || "<year>") + "/" + (state.examId || "<exam-id>") + ".json";
+
+    const issues = validate();
+    const list = qs("#validationList");
+    if (issues.length) {
+      list.hidden = false;
+      list.innerHTML = issues.map(i => '<div class="validation-item">' + escapeHtml(i) + '</div>').join("");
+    } else {
+      list.hidden = true;
+      list.innerHTML = "";
+    }
+
+    scheduleSave();
+  }
+
+  // ---------- export actions ----------
+
+  function wireExport() {
+    qs("#copyJsonBtn").addEventListener("click", (e) => copyText(qs("#jsonPreview").textContent, e.currentTarget));
+    qs("#copyManifestBtn").addEventListener("click", (e) => copyText(qs("#manifestPreview").textContent, e.currentTarget));
+    qs("#downloadJsonBtn").addEventListener("click", downloadJson);
+  }
+
+  async function copyText(text, btn) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    const original = btn.textContent;
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove("copied");
+    }, 1400);
+  }
+
+  function downloadJson() {
+    const data = JSON.stringify(buildExamObject(), null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = (state.examId || "exam") + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- manifest merge ----------
+
+  function showManifestMergeStatus(ok, message) {
+    const box = qs("#manifestMergeStatus");
+    box.hidden = false;
+    box.classList.toggle("has-issues", !ok);
+    box.innerHTML = '<div class="summary-line">' + escapeHtml(message) + "</div>";
+  }
+
+  function wireManifestMerge() {
+    const input = qs("#manifestMergeInput");
+    input.addEventListener("input", () => {
+      autoGrowTextarea(input);
+      const status = qs("#manifestMergeStatus");
+      if (status && !status.hidden) { status.hidden = true; status.innerHTML = ""; }
+      qs("#manifestMergedBlock").hidden = true;
+    });
+    input.addEventListener("paste", () => setTimeout(() => autoGrowTextarea(input), 0));
+
+    qs("#mergeManifestBtn").addEventListener("click", () => {
+      const raw = input.value.trim();
+      qs("#manifestMergedBlock").hidden = true;
+
+      const issues = validate();
+      if (issues.length) {
+        showManifestMergeStatus(false, "Fix the issues in the validation list below first — the exam entry isn't complete yet.");
+        return;
+      }
+
+      let manifest;
+      if (!raw) {
+        manifest = {};
+      } else {
+        try {
+          manifest = JSON.parse(raw);
+        } catch (e) {
+          showManifestMergeStatus(false, "That doesn't look like valid JSON — check for a stray comma or bracket, then try again.");
+          return;
+        }
+      }
+
+      if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
+        showManifestMergeStatus(false, "Expected manifest.json to be an object keyed by year — this doesn't look like that shape, so nothing was merged.");
+        return;
+      }
+
+      const yearKey = String(state.examYear);
+      if (manifest[yearKey] === undefined) manifest[yearKey] = [];
+      if (!Array.isArray(manifest[yearKey])) {
+        showManifestMergeStatus(false, '"' + yearKey + '" already exists in your manifest but isn\'t a list of exams — merge aborted so nothing gets overwritten by mistake.');
+        return;
+      }
+
+      const entry = buildManifestEntry();
+      const existingIdx = manifest[yearKey].findIndex(e => e && e.id === entry.id);
+      let actionMsg;
+      if (existingIdx >= 0) {
+        manifest[yearKey][existingIdx] = entry;
+        actionMsg = 'Updated the existing "' + entry.id + '" entry in the ' + yearKey + " block.";
+      } else {
+        manifest[yearKey].push(entry);
+        actionMsg = 'Added a new "' + entry.id + '" entry to the ' + yearKey + " block.";
+      }
+
+      qs("#mergedManifestPreview").textContent = JSON.stringify(manifest, null, 2);
+      qs("#manifestMergedBlock").hidden = false;
+      showManifestMergeStatus(true, actionMsg);
+    });
+
+    qs("#copyMergedManifestBtn").addEventListener("click", (e) => copyText(qs("#mergedManifestPreview").textContent, e.currentTarget));
+    qs("#downloadMergedManifestBtn").addEventListener("click", () => {
+      const data = qs("#mergedManifestPreview").textContent;
+      const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "manifest.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
