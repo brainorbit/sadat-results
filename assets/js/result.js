@@ -326,7 +326,7 @@
     card.innerHTML = `
       <div class="pc-header">
         <div class="pc-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9.5 12 5l10 4.5-10 4.5-10-4.5Z"/><path d="M6 11.6v4.5c0 1 2.7 2.4 6 2.4s6-1.4 6-2.4v-4.5"/><path d="M21 9.5v6"/></svg>
+          <img src="assets/images/logo.png" alt="" width="46" height="46">
         </div>
         <div>
           <div class="pc-uni">${escapeHtml(CONFIG.universityName)}</div>
